@@ -1,21 +1,69 @@
-name: react-native-android-build-apk
+name: Build APK and release
+run-name: ${{ github.actor }} build project
 on:
-    workflow_dispatch: 
+  pull_request:
+    types:
+      - closed
+    branches:
+      - main
+  workflow_dispatch:
+
+    
 jobs:
-  build-android:
+  release-version:
     runs-on: ubuntu-latest
-    steps: 
+    steps:
+      - uses: actions/checkout@v3
+      - name: Get package versions
+        id: package-version
+        uses: martinbeentjes/npm-get-version-action@main 
+  
+      - name: "Push tag v${{ steps.package-version.outputs.current-version }}"
+        uses: rickstaa/action-create-tag@v1
+        id: tag_version
+        with:
+          tag_exists_error: false
+          tag: "v${{ steps.package-version.outputs.current-version }}"
+
+  build-android:
+    if: github.event.pull_request.merged || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Set current date as env variable
+        run: echo "date_today=$(date +'%Y-%m-%d')" >> $GITHUB_ENV
+      - name: Set repository name as env variable
+        run: echo "repository_name=$(echo '${{ github.repository }}' | awk -F '/' '{print $2}')" >> $GITHUB_ENV
+
       - uses: actions/checkout@v3
       - name: Install npm dependencies
         run: |
           npm install
+      - name: Get package versions
+        id: package-version
+        uses: martinbeentjes/npm-get-version-action@main 
+      - name: Extract release notes
+        id: extract-release-notes
+        uses: ffurrer2/extract-release-notes@v1
+
       - name: Change wrapper permissions
         run: cd android && chmod +x ./gradlew
+
       - name: Build Android Release
         run: |
           cd android && ./gradlew assembleRelease
+
       - name: Upload Artifact
         uses: actions/upload-artifact@v1
         with:
-          name: app-release.apk
+          name: ${{ env.date_today }} - ${{ env.repository_name }}.apk
           path: android/app/build/outputs/apk/release/
+      
+      - uses: ncipollo/release-action@v1
+        with:
+          tag: "v${{ steps.package-version.outputs.current-version }}"
+          name: "Release v${{ steps.package-version.outputs.current-version }}"
+          makeLatest: "latest"
+          artifacts: "android/app/build/outputs/apk/release/"
+          bodyFile: |
+            ${{ steps.extract-release-notes.outputs.release_notes }}
+
