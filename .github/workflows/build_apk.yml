@@ -11,6 +11,7 @@ on:
     
 jobs:
   release-version:
+    if: github.event.pull_request.merged || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -60,12 +61,13 @@ jobs:
           name: ${{ env.date_today }} - ${{ env.repository_name }}.apk
           path: android/app/build/outputs/apk/release/
       
-      - uses: ncipollo/release-action@v1
+      - name: Release APK
+        uses: ncipollo/release-action@v1
         with:
           tag: "v${{ steps.package-version.outputs.current-version }}"
           name: "Release v${{ steps.package-version.outputs.current-version }}"
           makeLatest: "latest"
           artifacts: "android/app/build/outputs/apk/release/"
-          bodyFile: |
+          body: |
             ${{ steps.extract-release-notes.outputs.release_notes }}
 
