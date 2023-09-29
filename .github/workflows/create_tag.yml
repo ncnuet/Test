@@ -1,4 +1,4 @@
-name: Build APK and release
+name: Create tag
 run-name: ${{ github.actor }} build project
 on:
   pull_request:
