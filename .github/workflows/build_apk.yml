@@ -10,27 +10,18 @@ on:
 
     
 jobs:
-  release-version:
+  build-server:
     if: github.event.pull_request.merged || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
-    permissions:
-      contents: write
     steps:
-      - uses: actions/checkout@v3
-      - name: Get package versions
-        id: package-version
-        uses: martinbeentjes/npm-get-version-action@main 
-  
-      - name: "Push tag v${{ steps.package-version.outputs.current-version }}"
-        uses: rickstaa/action-create-tag@v1
-        id: tag_version
-        with:
-          tag_exists_error: false
-          tag: "v${{ steps.package-version.outputs.current-version }}"
+      - name: Set current date as env variable
+        run: echo "date_today=$(date +'%Y-%m-%d')" >> $GITHUB_ENV
 
   build-android:
     if: github.event.pull_request.merged || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     steps:
       - name: Set current date as env variable
         run: echo "date_today=$(date +'%Y-%m-%d')" >> $GITHUB_ENV
@@ -65,9 +56,11 @@ jobs:
         uses: ncipollo/release-action@v1
         with:
           tag: "v${{ steps.package-version.outputs.current-version }}"
+          allowUpdates: 
+          replacesArtifacts: false
           name: "Release v${{ steps.package-version.outputs.current-version }}"
           makeLatest: "latest"
-          artifacts: "android/app/build/outputs/apk/release/"
+          artifacts: "android/app/build/outputs/apk/release/*.apk"
           body: |
             ${{ steps.extract-release-notes.outputs.release_notes }}
 
